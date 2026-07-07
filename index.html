@@ -1163,11 +1163,6 @@
                     if (this.isExporting) return;
                     this.isExporting = true;
                     this.exportStatus = 'generating';
-
-                    const originalZoom = this.zoom;
-                    
-                    // Kembalikan ke skala 100% (skala 1.0) sementara saat merender agar tidak buram
-                    this.zoom = 1.0;
                     
                     await this.$nextTick();
                     // Menunggu pemuatan visual selesai sempurna
@@ -1178,18 +1173,42 @@
                         await document.fonts.ready;
                     }
 
-                    const element = document.getElementById('invoice-preview');
+                    const sourceElement = document.getElementById('invoice-preview');
+                    let exportElement = null;
 
                     try {
+                        exportElement = sourceElement.cloneNode(true);
+                        exportElement.id = 'invoice-export-render';
+                        exportElement.classList.remove('shadow-2xl');
+                        exportElement.style.cssText = [
+                            'position: fixed',
+                            'left: -10000px',
+                            'top: 0',
+                            'width: 794px',
+                            'height: 1123px',
+                            'transform: none',
+                            'transform-origin: top left',
+                            'background: #ffffff',
+                            'box-shadow: none',
+                            'z-index: -1'
+                        ].join(';');
+                        document.body.appendChild(exportElement);
+
                         const options = {
                             scale: 3, // Peningkatan kualitas ketajaman 3x lipat
                             useCORS: true,
                             allowTaint: true,
                             backgroundColor: '#ffffff',
-                            logging: false
+                            logging: false,
+                            width: 794,
+                            height: 1123,
+                            windowWidth: 794,
+                            windowHeight: 1123,
+                            scrollX: 0,
+                            scrollY: 0
                         };
 
-                        const canvas = await html2canvas(element, options);
+                        const canvas = await html2canvas(exportElement, options);
                         const imgData = canvas.toDataURL('image/png');
 
                         const { jsPDF } = window.jspdf;
@@ -1215,8 +1234,9 @@
                         this.exportStatus = 'error';
                         this.showToast('Terjadi kesalahan pembuatan dokumen!', 'error');
                     } finally {
-                        // Kembalikan skala visual preview ke kondisi sebelumnya
-                        this.zoom = originalZoom;
+                        if (exportElement) {
+                            exportElement.remove();
+                        }
                         setTimeout(() => {
                             this.exportStatus = 'idle';
                             this.isExporting = false;
