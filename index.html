@@ -803,14 +803,18 @@
                 // Fungsi Menghitung Skala Preview Otomatis (Responsive Zoom)
                 autoScale() {
                     const containerWidth = this.$refs.previewContainer ? this.$refs.previewContainer.offsetWidth : 800;
+                    const containerHeight = this.$refs.previewContainer ? this.$refs.previewContainer.offsetHeight : window.innerHeight;
+                    const controlsHeight = 64;
                     if (window.innerWidth < 1024) {
                         // Tata letak vertikal (Mobile & Tablet)
                         const availableWidth = window.innerWidth - 32;
-                        this.zoom = Math.max(0.4, Math.min(1.0, availableWidth / 794));
+                        const availableHeight = Math.max(360, containerHeight - controlsHeight - 32);
+                        this.zoom = Math.max(0.35, Math.min(1.0, availableWidth / 794, availableHeight / 1123));
                     } else {
                         // Tata letak dua kolom (Desktop)
                         const availableWidth = containerWidth - 64;
-                        this.zoom = Math.max(0.5, Math.min(1.0, availableWidth / 794));
+                        const availableHeight = Math.max(480, containerHeight - controlsHeight - 64);
+                        this.zoom = Math.max(0.45, Math.min(1.0, availableWidth / 794, availableHeight / 1123));
                     }
                 },
 
