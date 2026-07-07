@@ -512,8 +512,8 @@
                                 <div class="space-y-1">
                                     <h2 class="text-2xl font-extrabold text-brand-500 tracking-tight uppercase">INVOICE</h2>
                                     <!-- Badge Status Pembayaran -->
-                                    <span class="inline-block min-w-[150px] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border text-center"
-                                          :style="isPaid ? 'background-color:#ECFDF5;color:#047857;border-color:#A7F3D0;' : 'background-color:#FFF1F2;color:#BE123C;border-color:#FECDD3;'"
+                                    <span class="inline-block min-w-[142px] px-3 rounded-full text-[10px] font-bold uppercase tracking-wider border text-center align-middle"
+                                          :style="getPaymentStatusStyle()"
                                           x-text="getPaymentStatusLabel()"></span>
                                 </div>
                                 <div class="text-[11px] space-y-1.5 pt-2">
@@ -593,18 +593,18 @@
                             </div>
 
                             <!-- Ringkasan Finansial -->
-                            <div class="col-span-5 space-y-2.5 text-xs text-slate-500">
+                            <div class="col-span-5 text-xs text-slate-500">
                                 <div class="flex justify-between items-center px-2">
                                     <span>Subtotal</span>
                                     <span class="font-semibold text-slate-800" x-text="formatCurrency(getSubtotal())"></span>
                                 </div>
-                                <div class="flex justify-between items-center px-2">
+                                <div class="flex justify-between items-center px-2 mt-2.5">
                                     <span x-text="'PPN (' + vatPercent + '%)'"></span>
                                     <span class="font-semibold text-slate-800" x-text="formatCurrency(getVatAmount())"></span>
                                 </div>
-                                <div class="bg-slate-950 text-white rounded-premium p-3 flex justify-between items-center shadow-md">
+                                <div class="bg-slate-950 text-white rounded-premium px-3 py-2.5 mt-4 flex justify-between items-center shadow-md">
                                     <span class="text-[10px] font-bold uppercase tracking-wider">Total Akhir</span>
-                                    <span class="text-sm font-extrabold" x-text="formatCurrency(getGrandTotal())"></span>
+                                    <span class="text-[13px] font-extrabold" x-text="formatCurrency(getGrandTotal())"></span>
                                 </div>
                             </div>
                         </div>
@@ -1131,6 +1131,13 @@
 
                 getPaymentStatusLabel() {
                     return this.isPaid ? 'PAID / LUNAS' : 'UNPAID / BELUM LUNAS';
+                },
+
+                getPaymentStatusStyle() {
+                    const base = 'height:22px;line-height:20px;';
+                    return this.isPaid
+                        ? base + 'background-color:#ECFDF5;color:#047857;border-color:#A7F3D0;'
+                        : base + 'background-color:#FFF1F2;color:#BE123C;border-color:#FECDD3;';
                 },
 
                 // Mengosongkan Formulir
