@@ -67,7 +67,7 @@
         }
     </style>
 </head>
-<body class="h-screen overflow-hidden text-slate-800" x-data="invoiceApp()">
+<body class="min-h-screen lg:h-screen overflow-y-auto lg:overflow-hidden text-slate-800" x-data="invoiceApp()">
 
     <!-- Toast Notifikasi Atas -->
     <div x-show="toast.show"
@@ -123,10 +123,10 @@
     </header>
 
     <!-- Konten Utama Aplikasi (Split Layout) -->
-    <main class="h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-hidden w-full">
+    <main class="min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-visible lg:overflow-hidden w-full">
         
         <!-- Kolom Kiri: Sidebar Editor (Scrollable dengan Sistem Tab) -->
-        <section class="w-full lg:w-[460px] bg-white border-r border-slate-200 flex flex-col h-full flex-shrink-0 overflow-hidden">
+        <section class="w-full lg:w-[460px] bg-white border-r border-slate-200 flex flex-col h-auto lg:h-full flex-shrink-0 overflow-hidden">
             
             <!-- Tab Navigasi Menu -->
             <div class="bg-slate-50 border-b border-slate-200 p-2 flex gap-1 flex-shrink-0">
@@ -454,7 +454,7 @@
         </section>
 
         <!-- Kolom Kanan: Lembar Preview A4 (Skala Zoom Otomatis) -->
-        <section x-ref="previewContainer" class="flex-grow overflow-auto p-4 md:p-8 flex flex-col items-center justify-start bg-[#F4F5F7] h-full relative" style="background-image: radial-gradient(#E2E8F0 1.2px, transparent 1.2px); background-size: 24px 24px;">
+        <section x-ref="previewContainer" class="flex-grow overflow-auto p-4 md:p-8 flex flex-col items-center justify-start bg-[#F4F5F7] h-auto lg:h-full min-h-[640px] relative" style="background-image: radial-gradient(#E2E8F0 1.2px, transparent 1.2px); background-size: 24px 24px;">
             
             <!-- Kontrol Skala Preview -->
             <div class="w-full max-w-[794px] flex flex-col sm:flex-row justify-between items-center mb-4 gap-2 sm:gap-0">
@@ -512,11 +512,9 @@
                                 <div class="space-y-1">
                                     <h2 class="text-2xl font-extrabold text-brand-500 tracking-tight uppercase">INVOICE</h2>
                                     <!-- Badge Status Pembayaran -->
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                                          :class="isPaid ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'">
-                                        <span class="w-1.5 h-1.5 rounded-full" :class="isPaid ? 'bg-emerald-500' : 'bg-rose-500'"></span>
-                                        <span x-text="isPaid ? 'PAID / LUNAS' : 'UNPAID / BELUM LUNAS'"></span>
-                                    </span>
+                                    <span class="inline-block min-w-[150px] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border text-center"
+                                          :style="isPaid ? 'background-color:#ECFDF5;color:#047857;border-color:#A7F3D0;' : 'background-color:#FFF1F2;color:#BE123C;border-color:#FECDD3;'"
+                                          x-text="getPaymentStatusLabel()"></span>
                                 </div>
                                 <div class="text-[11px] space-y-1.5 pt-2">
                                     <p class="text-slate-500 font-medium">Nomor Invoice:<br><span class="text-slate-900 font-bold text-sm tracking-tight" x-text="invoiceNum"></span></p>
@@ -1129,6 +1127,10 @@
                     const parts = dateStr.split('-');
                     if (parts.length !== 3) return dateStr;
                     return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                },
+
+                getPaymentStatusLabel() {
+                    return this.isPaid ? 'PAID / LUNAS' : 'UNPAID / BELUM LUNAS';
                 },
 
                 // Mengosongkan Formulir
