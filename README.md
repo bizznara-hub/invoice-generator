@@ -26,7 +26,25 @@ Ekspor/Impor JSON: Fitur cadangan fisik. Anda bisa mengunduh draf sebagai file .
 
 Indonesian "Terbilang" Engine: Konversi otomatis angka total menjadi kalimat teks (Contoh: Dua juta Rupiah).
 
-Customer Database: Simpan daftar pelanggan tetap di memori lokal browser untuk pengisian cepat di masa mendatang.
+Customer Database: Simpan daftar pelanggan tetap di penyimpanan lokal browser untuk pengisian cepat di masa mendatang.
+
+✅ Catatan Perbaikan Stabilitas
+
+Versi ini tetap mempertahankan filosofi tanpa login, tanpa backend, dan langsung pakai dari browser. Beberapa perbaikan teknis telah ditambahkan agar pengalaman client-side lebih aman dan konsisten:
+
+Tanggal invoice default kini mengikuti tanggal hari ini secara otomatis, dengan tenggat waktu default 14 hari setelah tanggal terbit.
+
+Daftar pelanggan tersimpan kini benar-benar disimpan di localStorage browser, bukan hanya di memori sesi, sehingga tetap tersedia setelah browser di-refresh.
+
+Penyimpanan draft dan pelanggan kini memiliki penanganan error. Jika localStorage browser penuh, aplikasi akan menampilkan notifikasi agar pengguna dapat menghapus draft lama atau mengecilkan logo.
+
+Impor JSON kini dinormalisasi sebelum dimuat ke aplikasi. Data item, pelanggan, seller, pajak, mata uang, status pembayaran, dan logo dipastikan berada dalam format yang aman untuk mencegah preview invoice error.
+
+Nilai qty, harga, diskon, dan PPN kini dibatasi di sisi logika aplikasi agar total invoice tidak menjadi negatif atau tidak masuk akal akibat data JSON yang rusak.
+
+Elemen Alpine.js yang memakai x-cloak kini benar-benar tersembunyi sebelum JavaScript siap, sehingga toast, overlay, dan tab tidak berkedip saat halaman pertama kali dibuka.
+
+Export JSON kini membersihkan object URL setelah file diunduh untuk menghindari kebocoran memori kecil pada sesi penggunaan panjang.
 
 🛠️ Panduan Penggunaan
 
@@ -42,7 +60,7 @@ Nomor Invoice: Gunakan penomoran unik sesuai sistem perusahaan Anda.
 
 Mata Uang: Pilih antara IDR (Rupiah) atau USD (Dolar). Format ribuan akan menyesuaikan secara otomatis.
 
-Data Klien: Masukkan rincian penerima tagihan. Gunakan fitur "Simpan Baru" untuk memasukkan data klien ke dropdown agar mudah digunakan kembali.
+Data Klien: Masukkan rincian penerima tagihan. Gunakan fitur "Simpan Baru" untuk memasukkan data klien ke dropdown lokal browser agar mudah digunakan kembali pada kunjungan berikutnya.
 
 3. Daftar Item & Kalkulasi
 
@@ -69,5 +87,7 @@ GitHub Pages: Unggah file ke repository Anda, masuk ke Settings > Pages, lalu ak
 🛡️ Keamanan & Privasi
 
 ScribeInvoice tidak menggunakan backend API. Semua data disimpan menggunakan API localStorage browser. Kami menyarankan untuk melakukan Ekspor JSON secara berkala jika Anda ingin menyimpan cadangan draf permanen di luar browser.
+
+Catatan penting: karena aplikasi tidak memakai akun/login, data draft dan pelanggan bersifat lokal pada browser dan perangkat yang sama. Membersihkan site data/browser storage dapat menghapus data tersebut. Gunakan Ekspor JSON sebagai backup jika invoice perlu dipindahkan ke perangkat lain atau disimpan jangka panjang.
 
 Dibuat untuk profesional yang menghargai kecepatan dan privasi data.

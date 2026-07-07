@@ -59,6 +59,9 @@
             font-family: 'Inter', sans-serif;
             background-color: #F4F5F7;
         }
+        [x-cloak] {
+            display: none !important;
+        }
         .rounded-premium {
             border-radius: 10px;
         }
@@ -551,11 +554,11 @@
                                 <tbody class="divide-y divide-slate-100 text-[11px] text-slate-700">
                                     <template x-for="(item, index) in lineItems" :key="index">
                                         <!-- Sembunyikan item kosong agar lembar preview tetap rapi -->
-                                        <tr x-show="item.description.trim() !== ''" class="hover:bg-slate-50/50 transition-colors">
-                                            <td class="py-3.5 pl-2 font-medium text-slate-800" x-text="item.description"></td>
-                                            <td class="py-3.5 text-right pr-4 text-slate-500" x-text="item.qty"></td>
+                                        <tr x-show="normalizeText(item.description).trim() !== ''" class="hover:bg-slate-50/50 transition-colors">
+                                            <td class="py-3.5 pl-2 font-medium text-slate-800" x-text="normalizeText(item.description)"></td>
+                                            <td class="py-3.5 text-right pr-4 text-slate-500" x-text="normalizeNumber(item.qty, 0, 0)"></td>
                                             <td class="py-3.5 text-right pr-4 text-slate-500" x-text="formatCurrency(item.price)"></td>
-                                            <td class="py-3.5 text-right pr-4 text-slate-400" x-text="item.discount ? item.discount + '%' : '-'"></td>
+                                            <td class="py-3.5 text-right pr-4 text-slate-400" x-text="normalizeNumber(item.discount, 0, 0, 100) ? normalizeNumber(item.discount, 0, 0, 100) + '%' : '-'"></td>
                                             <td class="py-3.5 text-right pr-2 font-semibold text-slate-900" x-text="formatCurrency(getRowAmount(item))"></td>
                                         </tr>
                                     </template>
@@ -636,8 +639,8 @@
                 logo: null,
                 invoiceNum: 'INV/2026/001',
                 currency: 'IDR',
-                invoiceDate: '2026-07-06',
-                dueDate: '2026-07-20',
+                invoiceDate: '',
+                dueDate: '',
                 isPaid: false,
                 dragOver: false,
                 isExporting: false,
@@ -691,8 +694,16 @@
                 savedInvoicesList: [],
 
                 init() {
+                    if (!this.invoiceDate) {
+                        this.invoiceDate = this.getTodayISO();
+                    }
+                    if (!this.dueDate) {
+                        this.dueDate = this.addDaysISO(this.invoiceDate, 14);
+                    }
+
                     // Muat riwayat tersimpan dari LocalStorage browser
                     this.loadFromLocalStorage();
+                    this.loadSavedCustomers();
 
                     // Atur skala zoom awal secara cerdas berdasarkan lebar window
                     this.autoScale();
@@ -712,11 +723,81 @@
                     // Auto-update tenggat waktu ke 14 hari setiap kali tanggal terbit diubah
                     this.$watch('invoiceDate', (newVal) => {
                         if (newVal) {
-                            const dateObj = new Date(newVal);
-                            dateObj.setDate(dateObj.getDate() + 14);
-                            this.dueDate = dateObj.toISOString().split('T')[0];
+                            this.dueDate = this.addDaysISO(newVal, 14);
                         }
                     });
+                },
+
+                getTodayISO() {
+                    const today = new Date();
+                    const timezoneOffsetMs = today.getTimezoneOffset() * 60000;
+                    return new Date(today.getTime() - timezoneOffsetMs).toISOString().split('T')[0];
+                },
+
+                addDaysISO(dateStr, days) {
+                    if (!dateStr) return '';
+                    const [year, month, day] = dateStr.split('-').map(Number);
+                    if (!year || !month || !day) return dateStr;
+                    const dateObj = new Date(year, month - 1, day);
+                    dateObj.setDate(dateObj.getDate() + days);
+                    const timezoneOffsetMs = dateObj.getTimezoneOffset() * 60000;
+                    return new Date(dateObj.getTime() - timezoneOffsetMs).toISOString().split('T')[0];
+                },
+
+                normalizeText(value) {
+                    return typeof value === 'string' ? value : '';
+                },
+
+                normalizeNumber(value, fallback = 0, min = null, max = null) {
+                    let parsed = parseFloat(value);
+                    if (!Number.isFinite(parsed)) parsed = fallback;
+                    if (min !== null) parsed = Math.max(min, parsed);
+                    if (max !== null) parsed = Math.min(max, parsed);
+                    return parsed;
+                },
+
+                normalizeBoolean(value) {
+                    if (value === true || value === 'true') return true;
+                    if (value === false || value === 'false') return false;
+                    return false;
+                },
+
+                normalizePerson(person = {}) {
+                    return {
+                        name: this.normalizeText(person.name),
+                        address: this.normalizeText(person.address),
+                        phone: this.normalizeText(person.phone),
+                        email: this.normalizeText(person.email)
+                    };
+                },
+
+                normalizeLineItem(item = {}) {
+                    return {
+                        description: this.normalizeText(item.description),
+                        qty: this.normalizeNumber(item.qty, 1, 0),
+                        price: this.normalizeNumber(item.price, 0, 0),
+                        discount: this.normalizeNumber(item.discount, 0, 0, 100)
+                    };
+                },
+
+                normalizeInvoicePayload(payload = {}) {
+                    const lineItems = Array.isArray(payload.lineItems)
+                        ? payload.lineItems.map(item => this.normalizeLineItem(item))
+                        : [{ description: '', qty: 1, price: 0, discount: 0 }];
+
+                    return {
+                        invoiceNum: this.normalizeText(payload.invoiceNum) || 'INV/2026/001',
+                        currency: payload.currency === 'USD' ? 'USD' : 'IDR',
+                        invoiceDate: this.normalizeText(payload.invoiceDate) || this.getTodayISO(),
+                        dueDate: this.normalizeText(payload.dueDate),
+                        isPaid: this.normalizeBoolean(payload.isPaid),
+                        seller: this.normalizePerson(payload.seller),
+                        customer: this.normalizePerson(payload.customer),
+                        lineItems: lineItems.length ? lineItems : [{ description: '', qty: 1, price: 0, discount: 0 }],
+                        vatPercent: this.normalizeNumber(payload.vatPercent, 11, 0, 100),
+                        notes: this.normalizeText(payload.notes),
+                        logo: typeof payload.logo === 'string' && payload.logo.startsWith('data:image/') ? payload.logo : null
+                    };
                 },
 
                 // Fungsi Menghitung Skala Preview Otomatis (Responsive Zoom)
@@ -735,14 +816,25 @@
 
                 // Membaca data dari localStorage
                 loadFromLocalStorage() {
-                    const stored = localStorage.getItem('scribe_saved_invoices');
-                    if (stored) {
-                        try {
-                            this.savedInvoicesList = JSON.parse(stored);
-                        } catch (err) {
-                            console.error("Gagal parse localStorage:", err);
-                            this.savedInvoicesList = [];
+                    try {
+                        const stored = localStorage.getItem('scribe_saved_invoices');
+                        if (stored) {
+                            const parsed = JSON.parse(stored);
+                            this.savedInvoicesList = Array.isArray(parsed)
+                                ? parsed.map(item => {
+                                    const normalized = this.normalizeInvoicePayload(item);
+                                    return {
+                                        ...normalized,
+                                        grandTotal: this.normalizeNumber(item.grandTotal, 0, 0),
+                                        updatedAt: this.normalizeText(item.updatedAt)
+                                    };
+                                })
+                                : [];
                         }
+                    } catch (err) {
+                        console.error("Gagal parse localStorage:", err);
+                        this.savedInvoicesList = [];
+                        this.showToast("Riwayat draf lokal rusak dan tidak dapat dimuat.", "error");
                     }
                 },
 
@@ -756,17 +848,26 @@
                     const payload = this.getInvoicePayload();
                     const existingIndex = this.savedInvoicesList.findIndex(item => item.invoiceNum === this.invoiceNum);
                     
+                    const nextList = JSON.parse(JSON.stringify(this.savedInvoicesList));
+                    
                     if (existingIndex > -1) {
-                        // Perbarui draf yang sudah ada
-                        this.savedInvoicesList[existingIndex] = payload;
-                        this.showToast(`Draf Invoice ${this.invoiceNum} berhasil diperbarui!`, 'success');
+                        nextList[existingIndex] = payload;
                     } else {
-                        // Tambah draf baru di baris paling atas
-                        this.savedInvoicesList.unshift(payload);
-                        this.showToast(`Invoice ${this.invoiceNum} berhasil disimpan baru!`, 'success');
+                        nextList.unshift(payload);
                     }
 
-                    localStorage.setItem('scribe_saved_invoices', JSON.stringify(this.savedInvoicesList));
+                    try {
+                        localStorage.setItem('scribe_saved_invoices', JSON.stringify(nextList));
+                        this.savedInvoicesList = nextList;
+                        if (existingIndex > -1) {
+                            this.showToast(`Draf Invoice ${this.invoiceNum} berhasil diperbarui!`, 'success');
+                        } else {
+                            this.showToast(`Invoice ${this.invoiceNum} berhasil disimpan baru!`, 'success');
+                        }
+                    } catch (err) {
+                        console.error("Gagal menyimpan draf:", err);
+                        this.showToast("Gagal menyimpan draf. Storage browser kemungkinan penuh, coba hapus draft lama atau kecilkan logo.", "error");
+                    }
                 },
 
                 // Menghapus draf dari localStorage browser
@@ -774,9 +875,15 @@
                     const item = this.savedInvoicesList[index];
                     if (!confirm(`Apakah Anda yakin ingin menghapus draf ${item.invoiceNum} dari browser?`)) return;
 
-                    this.savedInvoicesList.splice(index, 1);
-                    localStorage.setItem('scribe_saved_invoices', JSON.stringify(this.savedInvoicesList));
-                    this.showToast("Draf invoice berhasil dihapus dari browser.", "success");
+                    const nextList = this.savedInvoicesList.filter((_, idx) => idx !== index);
+                    try {
+                        localStorage.setItem('scribe_saved_invoices', JSON.stringify(nextList));
+                        this.savedInvoicesList = nextList;
+                        this.showToast("Draf invoice berhasil dihapus dari browser.", "success");
+                    } catch (err) {
+                        console.error("Gagal menghapus draf:", err);
+                        this.showToast("Gagal memperbarui riwayat browser.", "error");
+                    }
                 },
 
                 // Ekspor Draf Invoice Aktif Sebagai File JSON Lokal
@@ -795,6 +902,7 @@
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
                         
                         this.showToast("Draf berhasil diekspor sebagai file JSON!", "success");
                     } catch (err) {
@@ -811,7 +919,7 @@
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         try {
-                            const parsed = JSON.parse(e.target.result);
+                            const parsed = this.normalizeInvoicePayload(JSON.parse(e.target.result));
                             this.loadInvoicePayload(parsed);
                             this.showToast("Berhasil memuat draf dari file komputer Anda!", "success");
                             this.activeTab = 'edit'; // Kembali ke panel form edit otomatis
@@ -832,11 +940,11 @@
                         invoiceDate: this.invoiceDate,
                         dueDate: this.dueDate,
                         isPaid: this.isPaid,
-                        seller: { ...this.seller },
-                        customer: { ...this.customer },
-                        lineItems: JSON.parse(JSON.stringify(this.lineItems)),
-                        vatPercent: this.vatPercent,
-                        notes: this.notes,
+                        seller: this.normalizePerson(this.seller),
+                        customer: this.normalizePerson(this.customer),
+                        lineItems: this.lineItems.map(item => this.normalizeLineItem(item)),
+                        vatPercent: this.normalizeNumber(this.vatPercent, 11, 0, 100),
+                        notes: this.normalizeText(this.notes),
                         logo: this.logo,
                         grandTotal: this.getGrandTotal(),
                         updatedAt: new Date().toISOString()
@@ -846,17 +954,18 @@
                 // Memuat struktur draf data invoice kembali ke Alpine
                 loadInvoicePayload(payload) {
                     if (!payload) return;
-                    this.invoiceNum = payload.invoiceNum || 'INV/2026/001';
-                    this.currency = payload.currency || 'IDR';
-                    this.invoiceDate = payload.invoiceDate || '';
-                    this.dueDate = payload.dueDate || '';
-                    this.isPaid = payload.isPaid !== undefined ? payload.isPaid : false;
-                    this.seller = payload.seller ? { ...payload.seller } : { name: '', address: '', phone: '', email: '' };
-                    this.customer = payload.customer ? { ...payload.customer } : { name: '', address: '', phone: '', email: '' };
-                    this.lineItems = payload.lineItems ? JSON.parse(JSON.stringify(payload.lineItems)) : [{ description: '', qty: 1, price: 0, discount: 0 }];
-                    this.vatPercent = payload.vatPercent !== undefined ? payload.vatPercent : 11;
-                    this.notes = payload.notes || '';
-                    this.logo = payload.logo || null;
+                    const normalized = this.normalizeInvoicePayload(payload);
+                    this.invoiceNum = normalized.invoiceNum;
+                    this.currency = normalized.currency;
+                    this.invoiceDate = normalized.invoiceDate;
+                    this.dueDate = normalized.dueDate || this.addDaysISO(normalized.invoiceDate, 14);
+                    this.isPaid = normalized.isPaid;
+                    this.seller = { ...normalized.seller };
+                    this.customer = { ...normalized.customer };
+                    this.lineItems = JSON.parse(JSON.stringify(normalized.lineItems));
+                    this.vatPercent = normalized.vatPercent;
+                    this.notes = normalized.notes;
+                    this.logo = normalized.logo;
                 },
 
                 // Fungsi Toast Notifikasi
@@ -906,25 +1015,55 @@
                         return;
                     }
                     const selected = this.savedCustomers[index];
+                    if (!selected) return;
                     this.customer = { ...selected };
                     this.showToast(`Berhasil memuat data client: ${selected.name}`, 'success');
                 },
 
-                // Menyimpan Pelanggan Baru ke database lokal sesi
+                loadSavedCustomers() {
+                    try {
+                        const stored = localStorage.getItem('scribe_saved_customers');
+                        if (!stored) return;
+                        const parsed = JSON.parse(stored);
+                        if (Array.isArray(parsed)) {
+                            this.savedCustomers = parsed.map(customer => this.normalizePerson(customer)).filter(customer => customer.name.trim());
+                        }
+                    } catch (err) {
+                        console.error("Gagal memuat pelanggan:", err);
+                        this.showToast("Daftar pelanggan lokal rusak dan tidak dapat dimuat.", "error");
+                    }
+                },
+
+                saveCustomersToLocalStorage(nextCustomers = this.savedCustomers) {
+                    try {
+                        localStorage.setItem('scribe_saved_customers', JSON.stringify(nextCustomers));
+                        this.savedCustomers = nextCustomers;
+                        return true;
+                    } catch (err) {
+                        console.error("Gagal menyimpan pelanggan:", err);
+                        this.showToast("Gagal menyimpan pelanggan. Storage browser kemungkinan penuh.", "error");
+                        return false;
+                    }
+                },
+
+                // Menyimpan Pelanggan Baru ke database lokal browser
                 saveCurrentCustomer() {
                     if (!this.customer.name.trim()) {
                         this.showToast('Nama pelanggan tidak boleh kosong!', 'error');
                         return;
                     }
                     
-                    const exists = this.savedCustomers.some(cust => cust.name.toLowerCase() === this.customer.name.trim().toLowerCase());
+                    const normalizedCustomer = this.normalizePerson(this.customer);
+                    const exists = this.savedCustomers.some(cust => cust.name.toLowerCase() === normalizedCustomer.name.trim().toLowerCase());
                     if (exists) {
                         this.showToast('Data pelanggan dengan nama ini sudah terdaftar!', 'error');
                         return;
                     }
 
-                    this.savedCustomers.push({ ...this.customer });
-                    this.showToast('Pelanggan berhasil disimpan ke daftar lokal!', 'success');
+                    const nextCustomers = [...this.savedCustomers, normalizedCustomer];
+                    if (this.saveCustomersToLocalStorage(nextCustomers)) {
+                        this.showToast('Pelanggan berhasil disimpan ke daftar lokal!', 'success');
+                    }
                 },
 
                 // Kontrol Baris Layanan
@@ -940,26 +1079,26 @@
                 },
 
                 getActiveItemsCount() {
-                    return this.lineItems.filter(item => item.description.trim() !== '').length;
+                    return this.lineItems.filter(item => this.normalizeText(item.description).trim() !== '').length;
                 },
 
                 // Kalkulasi Finansial secara Real-Time
                 getRowAmount(item) {
-                    const qty = parseFloat(item.qty) || 0;
-                    const price = parseFloat(item.price) || 0;
-                    const discount = parseFloat(item.discount) || 0;
+                    const qty = this.normalizeNumber(item.qty, 0, 0);
+                    const price = this.normalizeNumber(item.price, 0, 0);
+                    const discount = this.normalizeNumber(item.discount, 0, 0, 100);
                     return Math.round(qty * price * (1 - discount / 100));
                 },
 
                 getSubtotal() {
                     return this.lineItems.reduce((acc, item) => {
-                        if (!item.description.trim()) return acc;
+                        if (!this.normalizeText(item.description).trim()) return acc;
                         return acc + this.getRowAmount(item);
                     }, 0);
                 },
 
                 getVatAmount() {
-                    const vat = parseFloat(this.vatPercent) || 0;
+                    const vat = this.normalizeNumber(this.vatPercent, 0, 0, 100);
                     return Math.round(this.getSubtotal() * (vat / 100));
                 },
 
@@ -994,8 +1133,8 @@
                         this.logo = null;
                         this.invoiceNum = 'INV/2026/001';
                         this.currency = 'IDR';
-                        this.invoiceDate = '2026-07-06';
-                        this.dueDate = '2026-07-20';
+                        this.invoiceDate = this.getTodayISO();
+                        this.dueDate = this.addDaysISO(this.invoiceDate, 14);
                         this.isPaid = false;
                         this.seller = { name: '', address: '', phone: '', email: '' };
                         this.customer = { name: '', address: '', phone: '', email: '' };
